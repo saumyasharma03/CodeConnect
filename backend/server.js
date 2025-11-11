@@ -20,7 +20,7 @@ app.use(express.json());
 app.use('/api/snippets', snippetRoutes);   // snippets routes
 app.use('/api/run', runRoute);             // run code route
 app.use('/api/auth', authRoutes);          // auth routes for /register and /login
-app.use('/api/', projectRoutes);          // auth routes for /register and /login
+app.use('/api/project', projectRoutes);          // auth routes for /register and /login
 
 // --- Test route ---
 app.get('/', (req, res) => {

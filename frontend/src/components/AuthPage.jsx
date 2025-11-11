@@ -18,11 +18,13 @@ export default function AuthPage() {
     e.preventDefault();
     try {
       const endpoint = isLogin
-       ? "http://localhost:5000/api/auth/login"
-  : "http://localhost:5000/api/auth/register";
+        ? "http://localhost:5000/api/auth/login"
+        : "http://localhost:5000/api/auth/register";
 
       const { data } = await axios.post(endpoint, { name, email, password });
       localStorage.setItem("user", JSON.stringify(data));
+      localStorage.setItem("token", data.token);
+
       axios.defaults.headers.common["Authorization"] = `Bearer ${data.token}`;
 
       navigate(`${redirectPath}?action=${action || ""}`, { replace: true });

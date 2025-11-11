@@ -21,6 +21,9 @@ export default function CodeEditor({ snippetId = "default-snippet" }) {
   const [connectedUsers, setConnectedUsers] = useState(0);
   const [executionTime, setExecutionTime] = useState(null);
   const [isCopied, setIsCopied] = useState(false);
+  const [showTitleModal, setShowTitleModal] = useState(false);
+  const [projectTitle, setProjectTitle] = useState("");
+  const [projectId, setProjectId] = useState(null);
   const [theme, setTheme] = useState("vs-dark");
 
   const socketRef = useRef(null);
@@ -146,37 +149,71 @@ int main() {
     }
   };
 
-  // Save code
-  const handleSave = async (postLogin = false) => {
+  // // Save code
+  // const handleSave = async (postLogin = false) => {
+  //   try {
+  //     const user = JSON.parse(localStorage.getItem("user"));
+  //     if (!user) throw new Error("User not logged in");
+
+  //     await axios.post(
+  //       "http://localhost:5000/api/snippets",
+  //       { code, language, snippetId },
+  //       { headers: { Authorization: `Bearer ${user.token}` } }
+  //     );
+
+  //     alert("✅ Code saved successfully!");
+  //   } catch (err) {
+  //     console.error(err);
+  //     alert("❌ Failed to save code, please try again.");
+  //   }
+  // };
+
+  // Handle Save click
+  // const handleSaveClick = () => {
+  //   const user = JSON.parse(localStorage.getItem("user"));
+  //   console.log(user);
+  //   if (!user) {
+  //     // Always redirect to login/signup page if not logged in
+  //     navigate(
+  //       `/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`
+  //     );
+  //     return;
+  //   }
+  //   handleSave(true);
+  // };
+  const handleSaveClick = () => {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) {
+      navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`);
+      return;
+    }
+    // Show modal to ask title
+    setShowTitleModal(true);
+  };
+
+  const handleSave = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
+      
       if (!user) throw new Error("User not logged in");
+      // console.log(user);
+      // console.log("title:", projectTitle);
+      // console.log("TOKEN BEING SENT:", user?.token);
 
-      await axios.post(
-        "http://localhost:5000/api/snippets",
-        { code, language, snippetId },
+      await axios.post("http://localhost:5000/api/project/save",
+        { projectId, title: projectTitle, code, language },
         { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      ).then(res => {
+        if (!projectId) setProjectId(res.data.project._id); // store the new ID
+      });
 
       alert("✅ Code saved successfully!");
+      setShowTitleModal(false);
+      setProjectTitle("");
     } catch (err) {
       console.error(err);
       alert("❌ Failed to save code, please try again.");
     }
-  };
-
-  // Handle Save click
-  const handleSaveClick = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
-    console.log(user);
-    if (!user) {
-      // Always redirect to login/signup page if not logged in
-      navigate(
-        `/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`
-      );
-      return;
-    }
-    handleSave(true);
   };
 
   // Handle Run click
@@ -265,13 +302,9 @@ int main() {
             scrollBeyondLastLine: false,
             padding: { top: 16, bottom: 16 },
             lineNumbers: "on",
-            glyphMargin: true,
-            folding: true,
-            detectIndentation: true,
-            tabSize: 2,
-            wordWrap: "on",
           }}
         />
+
         <div className="absolute top-3 right-3 bg-gray-800/90 backdrop-blur-sm text-white px-2 py-1 rounded text-xs border border-gray-600">
           {languageConfigs[language]?.icon} {languageConfigs[language]?.name}
         </div>
@@ -319,6 +352,36 @@ int main() {
           )}
         </div>
       </div>
+
+      {/* Title Modal */}
+      {showTitleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg w-96 shadow-xl">
+            <h3 className="text-white text-lg font-semibold mb-4">Enter Project Title</h3>
+            <input
+              type="text"
+              value={projectTitle}
+              onChange={(e) => setProjectTitle(e.target.value)}
+              placeholder="My Awesome Code"
+              className="w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-purple-400 outline-none"
+            />
+            <div className="flex justify-end gap-3 mt-4">
+              <button
+                onClick={() => setShowTitleModal(false)}
+                className="px-4 py-1 rounded border border-gray-500 text-gray-300 hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                className="px-4 py-1 rounded bg-purple-500 hover:bg-purple-600 text-white"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
