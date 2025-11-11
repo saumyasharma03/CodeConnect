@@ -11,7 +11,7 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const redirectPath = new URLSearchParams(location.search).get("redirect") || "/editor";
+  const redirectPath = new URLSearchParams(location.search).get("redirect") || "/";
   const action = new URLSearchParams(location.search).get("action"); // run or save
 
   const handleSubmit = async (e) => {

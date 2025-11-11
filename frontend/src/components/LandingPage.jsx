@@ -1,47 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import Navbar from "./Navbar";
 
 export default function LandingPage() {
   const navigate = useNavigate();
 
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
-      {/* Enhanced Header */}
-      <header className="bg-gray-800 border-b border-gray-700">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">{"</>"}</span>
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-                CollabEdit
-              </span>
-            </div>
-            
-            <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-300 hover:text-white transition-colors duration-200">
-                Features
-              </a>
-              <a href="#about" className="text-gray-300 hover:text-white transition-colors duration-200">
-                About
-              </a>
-              <button
-                onClick={() => navigate("/editor")}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-medium transition-all duration-200 transform hover:scale-105"
-              >
-                Get Started
-              </button>
-            </nav>
-
-            <button className="md:hidden text-gray-300">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </header>
+      <Navbar/>
 
       {/* Main Content */}
       <main className="flex-grow flex items-center justify-center py-12 px-6">
