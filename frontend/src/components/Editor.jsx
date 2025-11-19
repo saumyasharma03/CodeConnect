@@ -55,7 +55,7 @@ int main() {
     java: { name: "Java", extension: "java", icon: "🟠" },
   };
 
-  // Initialize code template
+  // Initialize template
   useEffect(() => {
     setCode(templates[language]);
   }, []);
@@ -65,8 +65,8 @@ int main() {
     if (!socketRef.current) {
       socketRef.current = io("http://localhost:5000");
     }
-    socketRef.current.emit("join-room", snippetId);
 
+    socketRef.current.emit("join-room", snippetId);
     socketRef.current.on("code-update", (updatedCode) => {
       if (editorRef.current) {
         const model = editorRef.current.getModel();
@@ -81,14 +81,14 @@ int main() {
     };
   }, [snippetId]);
 
-  // Reset code/output when language changes
+  // Reset code on language change
   useEffect(() => {
     setCode(templates[language]);
     setOutput("");
     setExecutionTime(null);
   }, [language, snippetId]);
 
-  // Automatic action after login redirect
+  // run after login redirect
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const action = params.get("action");
@@ -114,116 +114,104 @@ int main() {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
-      console.error("Failed to copy code:", err);
+      console.error("Failed to copy:", err);
     }
   };
 
   const handleShare = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      alert("Share link copied to clipboard!");
+      alert("Share link copied!");
     } catch (err) {
-      console.error("Failed to copy share link:", err);
+      console.error("Failed to copy link:", err);
     }
   };
 
-  // Run code
+  // 🔥 POLLING FUNCTION FOR BULLMQ JOB STATUS
+  const pollJobStatus = async (jobId) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/run/status/${jobId}`);
+
+        if (res.data.state === "completed") {
+          clearInterval(interval);
+          setLoading(false);
+          setOutput(res.data.result.output);
+          setExecutionTime(res.data.result.executionTime);
+        }
+
+        if (res.data.state === "failed") {
+          clearInterval(interval);
+          setLoading(false);
+          setOutput("❌ Execution failed.");
+        }
+      } catch (err) {
+        clearInterval(interval);
+        setLoading(false);
+        setOutput("❌ Error checking status.");
+      }
+    }, 1000);
+  };
+
+  // 🔥 UPDATED RUN FUNCTION USING QUEUE
   const handleRunCode = async (postLogin = false) => {
     if (!postLogin) setLoading(true);
+
     setOutput("");
     setExecutionTime(null);
 
-    const startTime = performance.now();
     try {
       const { data } = await axios.post("http://localhost:5000/api/run/run", {
         code,
         language,
       });
-      const endTime = performance.now();
-      setExecutionTime((endTime - startTime).toFixed(2));
-      setOutput(data.output || "Execution completed.");
+
+      const jobId = data.jobId; // <-- backend returns jobId
+      pollJobStatus(jobId); // start checking status
+
     } catch (err) {
-      setOutput("❌ Server error, please try again.");
-    } finally {
       setLoading(false);
+      setOutput("❌ Server error, try again.");
     }
   };
 
-  // // Save code
-  // const handleSave = async (postLogin = false) => {
-  //   try {
-  //     const user = JSON.parse(localStorage.getItem("user"));
-  //     if (!user) throw new Error("User not logged in");
-
-  //     await axios.post(
-  //       "http://localhost:5000/api/snippets",
-  //       { code, language, snippetId },
-  //       { headers: { Authorization: `Bearer ${user.token}` } }
-  //     );
-
-  //     alert("✅ Code saved successfully!");
-  //   } catch (err) {
-  //     console.error(err);
-  //     alert("❌ Failed to save code, please try again.");
-  //   }
-  // };
-
-  // Handle Save click
-  // const handleSaveClick = () => {
-  //   const user = JSON.parse(localStorage.getItem("user"));
-  //   console.log(user);
-  //   if (!user) {
-  //     // Always redirect to login/signup page if not logged in
-  //     navigate(
-  //       `/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`
-  //     );
-  //     return;
-  //   }
-  //   handleSave(true);
-  // };
+  // SAVE handlers remain same
   const handleSaveClick = () => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) {
       navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`);
       return;
     }
-    // Show modal to ask title
     setShowTitleModal(true);
   };
 
   const handleSave = async () => {
     try {
       const user = JSON.parse(localStorage.getItem("user"));
-      
       if (!user) throw new Error("User not logged in");
-      // console.log(user);
-      // console.log("title:", projectTitle);
-      // console.log("TOKEN BEING SENT:", user?.token);
 
-      await axios.post("http://localhost:5000/api/project/save",
-        { projectId, title: projectTitle, code, language },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      ).then(res => {
-        if (!projectId) setProjectId(res.data.project._id); // store the new ID
-      });
+      await axios
+        .post(
+          "http://localhost:5000/api/project/save",
+          { projectId, title: projectTitle, code, language },
+          { headers: { Authorization: `Bearer ${user.token}` } }
+        )
+        .then((res) => {
+          if (!projectId) setProjectId(res.data.project._id);
+        });
 
-      alert("✅ Code saved successfully!");
+      alert("✅ Saved!");
       setShowTitleModal(false);
       setProjectTitle("");
     } catch (err) {
-      console.error(err);
-      alert("❌ Failed to save code, please try again.");
+      alert("❌ Save failed");
     }
   };
 
-  // Handle Run click
   const handleRunClick = () => {
     const user = JSON.parse(localStorage.getItem("user"));
     if (!user) {
-      // Redirect to login if needed
-      navigate(
-        `/auth?redirect=${encodeURIComponent(location.pathname)}&action=run`
-      );
+      navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}&action=run`);
       return;
     }
     handleRunCode(true);
@@ -231,14 +219,12 @@ int main() {
 
   return (
     <div className="h-screen w-full bg-gradient-to-br from-gray-900 to-gray-800 flex flex-col">
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex items-center justify-between p-4 bg-gray-800/80 backdrop-blur-lg border-b border-gray-700">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <CodeBracketIcon className="h-6 w-6 text-blue-400" />
-            <h1 className="text-white text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
-              CollabCode
-            </h1>
+            <h1 className="text-white text-xl font-bold">CollabCode</h1>
           </div>
           <div className="flex items-center gap-2 px-3 py-1 bg-gray-700 rounded-lg">
             <UsersIcon className="h-4 w-4 text-green-400" />
@@ -270,7 +256,7 @@ int main() {
 
           <button
             onClick={handleCopyCode}
-            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gray-700 text-white hover:bg-gray-600 border border-gray-600 text-sm"
+            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-gray-700 text-white border border-gray-600 text-sm"
           >
             <ClipboardIcon className="h-4 w-4" />
             {isCopied ? "Copied!" : "Copy"}
@@ -278,7 +264,7 @@ int main() {
 
           <button
             onClick={handleShare}
-            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-purple-600 text-white hover:bg-purple-700 text-sm"
+            className="flex items-center gap-2 px-3 py-1 rounded-lg bg-purple-600 text-white text-sm"
           >
             <ShareIcon className="h-4 w-4" />
             Share
@@ -286,7 +272,7 @@ int main() {
         </div>
       </div>
 
-      {/* Editor */}
+      {/* EDITOR */}
       <div className="flex-1 relative">
         <Editor
           height="100%"
@@ -305,12 +291,12 @@ int main() {
           }}
         />
 
-        <div className="absolute top-3 right-3 bg-gray-800/90 backdrop-blur-sm text-white px-2 py-1 rounded text-xs border border-gray-600">
-          {languageConfigs[language]?.icon} {languageConfigs[language]?.name}
+        <div className="absolute top-3 right-3 bg-gray-800/90 text-white px-2 py-1 rounded text-xs border border-gray-600">
+          {languageConfigs[language].icon} {languageConfigs[language].name}
         </div>
       </div>
 
-      {/* Output + Run/Save */}
+      {/* OUTPUT */}
       <div className="bg-gray-800 border-t border-gray-700">
         <div className="flex items-center justify-between p-3 border-b border-gray-700">
           <div className="flex items-center gap-4">
@@ -326,7 +312,7 @@ int main() {
           <div className="flex items-center gap-3">
             <button
               onClick={handleRunClick}
-              className="flex items-center gap-2 px-4 py-1 rounded-lg bg-gradient-to-r from-green-500 to-blue-500 text-white font-medium shadow-md hover:from-green-600 hover:to-blue-600 transition-all text-sm"
+              className="flex items-center gap-2 px-4 py-1 rounded-lg bg-gradient-to-r from-green-500 to-blue-500 text-white text-sm"
             >
               <PlayIcon className="h-4 w-4" />
               {loading ? "Running..." : "Run"}
@@ -334,7 +320,7 @@ int main() {
 
             <button
               onClick={handleSaveClick}
-              className="flex items-center gap-2 px-4 py-1 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium shadow-md hover:from-purple-600 hover:to-pink-600 transition-all text-sm"
+              className="flex items-center gap-2 px-4 py-1 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white text-sm"
             >
               <BookmarkIcon className="h-4 w-4" />
               Save
@@ -344,37 +330,44 @@ int main() {
 
         <div className="h-40 overflow-auto">
           {output ? (
-            <pre className="p-3 font-mono text-sm text-green-400 whitespace-pre-wrap">{output}</pre>
+            <pre className="p-3 font-mono text-sm text-green-400 whitespace-pre-wrap">
+              {output}
+            </pre>
           ) : (
             <div className="h-full flex items-center justify-center text-gray-500">
-              Output will appear here after execution
+              Output will appear here
             </div>
           )}
         </div>
       </div>
 
-      {/* Title Modal */}
+      {/* SAVE TITLE MODAL */}
       {showTitleModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg w-96 shadow-xl">
-            <h3 className="text-white text-lg font-semibold mb-4">Enter Project Title</h3>
+            <h3 className="text-white text-lg font-semibold mb-4">
+              Enter Project Title
+            </h3>
+
             <input
               type="text"
               value={projectTitle}
               onChange={(e) => setProjectTitle(e.target.value)}
               placeholder="My Awesome Code"
-              className="w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600 focus:border-purple-400 outline-none"
+              className="w-full px-3 py-2 rounded bg-gray-700 text-white border border-gray-600"
             />
+
             <div className="flex justify-end gap-3 mt-4">
               <button
                 onClick={() => setShowTitleModal(false)}
-                className="px-4 py-1 rounded border border-gray-500 text-gray-300 hover:bg-gray-700"
+                className="px-4 py-1 rounded border border-gray-500 text-gray-300"
               >
                 Cancel
               </button>
+
               <button
                 onClick={handleSave}
-                className="px-4 py-1 rounded bg-purple-500 hover:bg-purple-600 text-white"
+                className="px-4 py-1 rounded bg-purple-500 text-white"
               >
                 Save
               </button>
