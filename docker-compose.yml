@@ -1,0 +1,30 @@
+version: "3.8"
+
+services:
+
+  backend:
+    build: ./backend
+    container_name: codeconnect-backend
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb+srv://saumyasharma0915_db_user:MLZT4562gmH4KUPl@codeeditor-cluster0.zva5luk.mongodb.net/?appName=CodeEditor-Cluster0
+      - JWT_SECRET=secretkey123
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert-rules.yml:/etc/prometheus/alert-rules.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus

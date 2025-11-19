@@ -1,0 +1,20 @@
+groups:
+- name: backend-alerts
+  rules:
+  - alert: BackendDown
+    expr: up{job="codeconnect-backend"} == 0
+    for: 30s
+    labels:
+      severity: critical
+    annotations:
+      summary: "Backend is DOWN"
+      description: "Prometheus cannot scrape the backend service on port 5000"
+
+  - alert: BackendSlow
+    expr: scrape_duration_seconds{job="codeconnect-backend"} > 2
+    for: 1m
+    labels:
+      severity: warning
+    annotations:
+      summary: "Backend scrape slow"
+      description: "Scrape duration exceeded 2 seconds"

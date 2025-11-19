@@ -177,36 +177,46 @@ int main() {
 
   // SAVE handlers remain same
   const handleSaveClick = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) {
-      navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`);
-      return;
-    }
-    setShowTitleModal(true);
-  };
+  const user = JSON.parse(localStorage.getItem("user"));
+  if (!user) {
+    navigate(`/auth?redirect=${encodeURIComponent(location.pathname)}&action=save`);
+    return;
+  }
+
+  // If project already exists → update directly
+  if (projectId) {
+    handleSave();
+    return;
+  }
+
+  // Only ask for title when creating a NEW project
+  setShowTitleModal(true);
+};
+
 
   const handleSave = async () => {
-    try {
-      const user = JSON.parse(localStorage.getItem("user"));
-      if (!user) throw new Error("User not logged in");
+  try {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) throw new Error("User not logged in");
 
-      await axios
-        .post(
-          "http://localhost:5000/api/project/save",
-          { projectId, title: projectTitle, code, language },
-          { headers: { Authorization: `Bearer ${user.token}` } }
-        )
-        .then((res) => {
-          if (!projectId) setProjectId(res.data.project._id);
-        });
+    const res = await axios.post(
+      "http://localhost:5000/api/project/save",
+      { projectId, title: projectTitle, code, language },
+      { headers: { Authorization: `Bearer ${user.token}` } }
+    );
 
-      alert("✅ Saved!");
-      setShowTitleModal(false);
-      setProjectTitle("");
-    } catch (err) {
-      alert("❌ Save failed");
-    }
-  };
+    // If newly created → store its ID
+    if (!projectId) setProjectId(res.data.project._id);
+
+    alert("✅ Saved!");
+    setShowTitleModal(false);
+    setProjectTitle("");
+
+  } catch (err) {
+    alert("❌ Save failed");
+  }
+};
+
 
   const handleRunClick = () => {
     const user = JSON.parse(localStorage.getItem("user"));
