@@ -12,7 +12,7 @@ const authRoutes = require('./routes/authRoutes');
 const projectRoutes = require('./routes/projectRoutes');
 
 // Queue Worker (BullMQ)
-require("./queues/codeWorker");  // <-- IMPORTANT: starts background worker
+require("./queues/codeWorker");  // <-- starts background worker
 
 const app = express();
 
@@ -34,6 +34,10 @@ app.get('/', (req, res) => {
 // ------------------------
 // Socket setup
 // ------------------------
+
+// roomId -> Map(socketId -> username)
+const roomUsers = {};
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -42,7 +46,7 @@ const io = new Server(server, {
   }
 });
 
-// ⭐ Make io globally usable (e.g., workers can emit results)
+// Make io globally usable
 global.io = io;
 
 io.on('connection', (socket) => {
@@ -56,16 +60,28 @@ io.on('connection', (socket) => {
     socket.username = username || 'Guest';
     socket.roomId = roomId;
 
-    // broadcast updated users count
-    const clients = io.sockets.adapter.rooms.get(roomId) || new Set();
-    io.to(roomId).emit('users-update', clients.size);
+    if (!roomUsers[roomId]) roomUsers[roomId] = new Map();
 
-    // notify others that a new user joined
-    socket.to(roomId).emit('user-joined', {
-      userId: socket.id,
-      username: socket.username,
-    });
+    // Remove previous sockets with same username
+    for (const [id, name] of roomUsers[roomId]) {
+      if (name === username && id !== socket.id) {
+        roomUsers[roomId].delete(id);
+      }
+    }
 
+    roomUsers[roomId].set(socket.id, socket.username);
+
+    // Emit unique online users
+    const userSet = new Set();
+    const uniqueUsers = [];
+    for (const name of roomUsers[roomId].values()) {
+      if (!userSet.has(name)) {
+        userSet.add(name);
+        uniqueUsers.push(name);
+      }
+    }
+
+    io.to(roomId).emit('users-list', uniqueUsers.map(name => ({ username: name })));
     console.log(`${socket.username} joined room ${roomId}`);
   });
 
@@ -90,13 +106,27 @@ io.on('connection', (socket) => {
   });
 
   // ------------------------
-  // Leave room explicitly
+  // Leave room
   // ------------------------
   socket.on('leave-room', ({ roomId }) => {
     socket.leave(roomId);
-    const clients = io.sockets.adapter.rooms.get(roomId) || new Set();
-    io.to(roomId).emit('users-update', clients.size);
-    socket.to(roomId).emit('user-left', { userId: socket.id });
+    if (roomUsers[roomId]) {
+      roomUsers[roomId].delete(socket.id);
+    }
+
+    // Emit updated unique users
+    const userSet = new Set();
+    const uniqueUsers = [];
+    if (roomUsers[roomId]) {
+      for (const name of roomUsers[roomId].values()) {
+        if (!userSet.has(name)) {
+          userSet.add(name);
+          uniqueUsers.push(name);
+        }
+      }
+    }
+
+    io.to(roomId).emit('users-list', uniqueUsers.map(name => ({ username: name })));
     console.log(`${socket.username} left room ${roomId}`);
   });
 
@@ -105,11 +135,22 @@ io.on('connection', (socket) => {
   // ------------------------
   socket.on('disconnect', () => {
     const roomId = socket.roomId;
-    if (roomId) {
-      const clients = io.sockets.adapter.rooms.get(roomId) || new Set();
-      io.to(roomId).emit('users-update', clients.size);
-      socket.to(roomId).emit('user-left', { userId: socket.id });
+    if (roomId && roomUsers[roomId]) {
+      roomUsers[roomId].delete(socket.id);
+
+      // Emit updated unique users
+      const userSet = new Set();
+      const uniqueUsers = [];
+      for (const name of roomUsers[roomId].values()) {
+        if (!userSet.has(name)) {
+          userSet.add(name);
+          uniqueUsers.push(name);
+        }
+      }
+
+      io.to(roomId).emit('users-list', uniqueUsers.map(name => ({ username: name })));
     }
+
     console.log('🔴 User disconnected:', socket.id);
   });
 });

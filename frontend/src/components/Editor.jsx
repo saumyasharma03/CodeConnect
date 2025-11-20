@@ -21,11 +21,14 @@ export default function CodeEditor({ snippetId = "default-snippet" }) {
   const [loading, setLoading] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState(0);
   const [executionTime, setExecutionTime] = useState(null);
+  const [userList, setUserList] = useState([]);
+  const [showUserModal, setShowUserModal] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [showTitleModal, setShowTitleModal] = useState(false);
   const [projectTitle, setProjectTitle] = useState("");
   const [projectId, setProjectId] = useState(null);
   const [theme, setTheme] = useState("vs-dark");
+
 
   const socketRef = useRef(null);
   const editorRef = useRef(null);
@@ -116,6 +119,11 @@ editorRef.current.setSelection(currentSelection);
     socketRef.current.on("users-update", (count) => {
       setConnectedUsers(count);
     });
+
+    socketRef.current.on("users-list", (list) => {
+      setUserList(list);
+    });
+
 
     // receive remote cursor updates
     socketRef.current.on("cursor-update", ({ userId, username, position, selection }) => {
@@ -476,9 +484,12 @@ const username = user.name || "Guest";
             <CodeBracketIcon className="h-6 w-6 text-blue-400" />
             <h1 className="text-white text-xl font-bold">CollabCode</h1>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1 bg-gray-700 rounded-lg">
+          <div
+            onClick={() => setShowUserModal(true)}
+            className="flex items-center gap-2 px-3 py-1 bg-gray-700 rounded-lg cursor-pointer hover:bg-gray-600"
+          >
             <UsersIcon className="h-4 w-4 text-green-400" />
-            <span className="text-white text-sm">{connectedUsers} online</span>
+            <span className="text-white text-sm">{userList.length} online</span>
           </div>
         </div>
 
@@ -609,6 +620,39 @@ const username = user.name || "Guest";
           )}
         </div>
       </div>
+
+      {showUserModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-gray-800 border border-gray-700 p-6 rounded-lg w-80 shadow-xl">
+
+      <h3 className="text-white text-lg font-semibold mb-4">
+        Online Users
+      </h3>
+
+      <div className="space-y-2 max-h-60 overflow-y-auto">
+        {userList.map((user) => (
+          <div
+            key={user.userId}
+            className="px-3 py-2 bg-gray-700 rounded text-white"
+          >
+            {user.username}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex justify-end mt-4">
+        <button
+          onClick={() => setShowUserModal(false)}
+          className="px-4 py-1 rounded border border-gray-500 text-gray-300"
+        >
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+)}
+
 
       {/* SAVE TITLE MODAL */}
       {showTitleModal && (
