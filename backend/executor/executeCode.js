@@ -1,7 +1,7 @@
-import fs from "fs";
-import { exec } from "child_process";
+const fs = require("fs");
+const { exec } = require("child_process");
 
-export async function executeCppCode(userCode, stdin = "") {
+const executeCppCode = async (userCode, stdin = "") => {
   const cppDir = "./dock/cpp";
   const filePath = `${cppDir}/main.cpp`;
 
@@ -35,4 +35,6 @@ export async function executeCppCode(userCode, stdin = "") {
   console.log("✅ Output:", runResult);
 
   return runResult;
-}
+};
+
+module.exports = { executeCppCode };
